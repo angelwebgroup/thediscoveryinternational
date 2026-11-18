@@ -2,11 +2,102 @@
 /**
  * Inquiries & Registrations Dashboard Viewer
  * The Discovery International School (Prithla, Palwal)
- * Displays all inquiries logged in data/inquiries.json
+ * Securely protected by session-based administrator passcode.
  */
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once __DIR__ . '/config.php';
 
+$adminPassword = $school['admin_inquiries_password'] ?? 'Discovery@2026';
+
+// 1. Handle Logout
+if (isset($_GET['action']) && $_GET['action'] === 'logout') {
+    $_SESSION['admin_auth'] = false;
+    unset($_SESSION['admin_auth']);
+    header('Location: admin-inquiries.php');
+    exit;
+}
+
+// 2. Handle Login Submission
+$loginError = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_passcode'])) {
+    $entered = trim((string)$_POST['login_passcode']);
+    if ($entered !== '' && hash_equals($adminPassword, $entered)) {
+        $_SESSION['admin_auth'] = true;
+        header('Location: admin-inquiries.php');
+        exit;
+    } else {
+        $loginError = 'Invalid administrator passcode. Please try again.';
+    }
+}
+
+$isAuthenticated = !empty($_SESSION['admin_auth']);
+
+// 3. If Not Logged In, Render Password Gate Screen
+if (!$isAuthenticated) {
+    // Block CSV Export if not logged in
+    if (isset($_GET['export'])) {
+        http_response_code(403);
+        exit('Access Denied: Please log in first.');
+    }
+
+    include 'header.php';
+    ?>
+    <main id="content" class="site-main" style="background: #f1f5f9; min-height: 70vh; display: flex; align-items: center; justify-content: center; padding: 60px 15px;">
+        <div style="width: 100%; max-width: 440px; background: #ffffff; border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); border: 1px solid var(--slate-200); overflow: hidden;">
+            
+            <div style="background: var(--navy-950); color: #ffffff; padding: 26px 24px; text-align: center; border-bottom: 3px solid var(--accent);">
+                <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(245, 158, 11, 0.15); color: var(--gold-400); display: inline-flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 10px;">
+                    <i class="fas fa-shield-halved"></i>
+                </div>
+                <h2 style="font-size: 1.35rem; margin: 0 0 4px; color: #ffffff;">Admin Access Required</h2>
+                <p style="margin: 0; font-size: 0.84rem; color: #cbd5e1;">Inquiry &amp; Registration Portal</p>
+            </div>
+
+            <div style="padding: 28px 24px;">
+                <?php if (!empty($loginError)): ?>
+                    <div style="background: #fef2f2; border: 1px solid #ef4444; color: #991b1b; padding: 10px 14px; border-radius: var(--radius-md); margin-bottom: 18px; font-size: 0.88rem; font-weight: 600;">
+                        <i class="fas fa-triangle-exclamation" style="margin-right: 4px;"></i> <?php echo htmlspecialchars($loginError); ?>
+                    </div>
+                <?php endif; ?>
+
+                <p style="font-size: 0.9rem; color: var(--slate-600); margin-top: 0; margin-bottom: 18px; line-height: 1.5;">
+                    This section contains private student and parent admission inquiries. Please enter the administrator passcode to proceed.
+                </p>
+
+                <form method="POST" action="admin-inquiries.php">
+                    <div style="margin-bottom: 20px;">
+                        <label for="login_passcode" style="display: block; font-weight: 700; font-size: 0.88rem; color: var(--navy-950); margin-bottom: 6px;">
+                            Administrator Passcode:
+                        </label>
+                        <div style="position: relative;">
+                            <input type="password" id="login_passcode" name="login_passcode" required autofocus placeholder="Enter passcode"
+                                   style="width: 100%; padding: 12px 14px; border: 1px solid var(--slate-300); border-radius: var(--radius-md); font-size: 0.95rem; outline: none; box-sizing: border-box;">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-hero-primary" style="width: 100%; padding: 12px; font-size: 0.95rem; border-radius: var(--radius-md);">
+                        <i class="fas fa-lock-open" style="margin-right: 6px;"></i> Unlock Dashboard
+                    </button>
+                </form>
+
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--slate-200); text-align: center;">
+                    <a href="index.php" style="color: var(--slate-500); font-size: 0.82rem; text-decoration: none;">
+                        <i class="fas fa-arrow-left"></i> Return to Homepage
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </main>
+    <?php
+    include 'footer.php';
+    exit;
+}
+
+// 4. Authenticated: Load Inquiries from data/inquiries.json
 $jsonFile = __DIR__ . '/data/inquiries.json';
 $inquiries = [];
 if (file_exists($jsonFile)) {
@@ -75,11 +166,11 @@ include 'header.php';
 <main id="content" class="site-main" style="background: #f8fafc; padding: 40px 0 60px;">
     <div class="container">
         
-        <!-- Header Banner -->
+        <!-- Header Banner with Logout -->
         <div style="background: var(--navy-950); color: #ffffff; border-radius: var(--radius-lg); padding: 26px 30px; margin-bottom: 28px; box-shadow: var(--shadow-md); border-top: 4px solid var(--accent); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
             <div>
                 <span class="hero-badge-tag" style="background: rgba(245, 158, 11, 0.2); color: var(--gold-400); border: 1px solid var(--gold-400); margin-bottom: 8px;">
-                    <i class="fas fa-database"></i> JSON Inquiry Log Viewer
+                    <i class="fas fa-lock"></i> Protected Admin Session
                 </span>
                 <h1 style="font-size: 1.85rem; margin: 4px 0 6px; color: #ffffff;">Inquiry &amp; Registration Records</h1>
                 <p style="color: #cbd5e1; font-size: 0.92rem; margin: 0;">
@@ -91,8 +182,8 @@ include 'header.php';
                 <a href="admin-inquiries.php?export=csv" class="btn btn-hero-primary" style="padding: 9px 18px; font-size: 0.88rem;">
                     <i class="fas fa-file-csv"></i> Download CSV
                 </a>
-                <a href="data/inquiries.json" target="_blank" class="btn btn-hero-outline" style="padding: 9px 18px; font-size: 0.88rem; background: rgba(255,255,255,0.08);">
-                    <i class="fas fa-code"></i> View Raw JSON
+                <a href="admin-inquiries.php?action=logout" class="btn btn-hero-outline" style="padding: 9px 18px; font-size: 0.88rem; background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #fca5a5;">
+                    <i class="fas fa-right-from-bracket"></i> Log Out
                 </a>
             </div>
         </div>
@@ -274,4 +365,3 @@ include 'header.php';
 </main>
 
 <?php include 'footer.php'; ?>
-

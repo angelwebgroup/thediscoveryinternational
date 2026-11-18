@@ -50,6 +50,31 @@ $school = [
         // 'client.newemail@gmail.com',         // (Optional) Client Added Email
     ],
 
+    // Secret Passcode to access admin-inquiries.php dashboard (Change this to any password you prefer)
+    'admin_inquiries_password' => 'Discovery@2026',
+
+    /**
+     * SMTP Mail Configuration (Recommended for Guaranteed Inbox Delivery)
+     * Why is SMTP needed?
+     *  1. Localhost (XAMPP on Mac/PC) cannot send emails without an SMTP server.
+     *  2. Gmail blocks or sends unauthenticated PHP mail() straight to the Spam folder.
+     * 
+     * How to use with Gmail:
+     *  - Set 'enabled' to true.
+     *  - Generate a 16-character Google App Password (from Google Account -> Security -> 2-Step Verification -> App Passwords).
+     *  - Paste it into 'password' below.
+     */
+    'smtp' => [
+        'enabled'    => false, // Set to true once password is provided
+        'host'       => 'smtp.gmail.com',
+        'port'       => 587,
+        'encryption' => 'tls',
+        'username'   => 'thediscoveryinternational@gmail.com',
+        'password'   => '', // Google App Password (16 chars) or cPanel mail password
+        'from_email' => 'thediscoveryinternational@gmail.com',
+        'from_name'  => 'The Discovery International School',
+    ],
+
     // School Leadership & Staff Key Figures
     'principal'             => 'Ms. Jyoti (BCA, MCA, B.Ed.)',
     'principal_name'        => 'Ms. Jyoti',
