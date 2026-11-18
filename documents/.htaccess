@@ -1,0 +1,11 @@
+# =========================================================================
+# Upload Directory Protection - documents/
+# =========================================================================
+
+# Disable Script Execution & Directory Listing
+Options -ExecCGI -Indexes
+
+# Deny access to all executable scripts and binaries
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|php8|phps|cgi|pl|py|sh|bash|exe|bat|cmd|bin|vbs|msi)$">
+    Require all denied
+</FilesMatch>
