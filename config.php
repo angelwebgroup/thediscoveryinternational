@@ -40,9 +40,14 @@ $school = [
     'session'        => '2026-27',
     'active_session' => '2026-2027',
     
-    // Form Notification Emails
+    // Form Notification Emails (Inquiries are emailed to ALL addresses in this list)
+    // To add more emails (e.g. for testing, principal, or new client emails), simply
+    // add them as comma-separated values in quotes below:
     'admin_emails'   => [
-        'thediscoveryinternational@gmail.com'
+        'thediscoveryinternational@gmail.com', // Primary School Email
+        'angelwebgroup@gmail.com',             // (Optional) Test Email 1
+        // 'test2@yourdomain.com',             // (Optional) Test Email 2
+        // 'client.newemail@gmail.com',         // (Optional) Client Added Email
     ],
 
     // School Leadership & Staff Key Figures

@@ -1,20 +1,53 @@
 <?php
+/**
+ * Form Email Dispatcher & JSON Inquiry Logger
+ * The Discovery International School (Prithla, Palwal)
+ * Handles:
+ *  1. General Contact Inquiries (contact-us.php)
+ *  2. Online Admission Registrations (online-admission.php)
+ * Automatically logs every inquiry into data/inquiries.json and emails all admin_emails.
+ */
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once __DIR__ . '/config.php';
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
+    $referer  = $_SERVER['HTTP_REFERER'] ?? 'index.php';
     $formType = $_GET['form'] ?? $_POST['form_type'] ?? 'contact';
 
-    // Recipients list from centralized config
-    $recipients = !empty($school['admin_emails']) 
-        ? implode(', ', $school['admin_emails']) 
-        : 'thediscoveryinternational@gmail.com';
+    // 1. Resolve and Validate Recipient Emails from centralized config
+    $raw_emails = $school['admin_emails'] ?? ['thediscoveryinternational@gmail.com'];
+    if (!is_array($raw_emails)) {
+        $raw_emails = [$raw_emails];
+    }
+    
+    $recipients = [];
+    foreach ($raw_emails as $em) {
+        $cleanEmail = trim((string)$em);
+        if (!empty($cleanEmail) && filter_var($cleanEmail, FILTER_VALIDATE_EMAIL)) {
+            $recipients[] = $cleanEmail;
+        }
+    }
+    if (empty($recipients)) {
+        $recipients = ['thediscoveryinternational@gmail.com'];
+    }
 
+    // Generate unique inquiry ID (e.g. INQ-20261118-9F3C1)
+    $inquiryId = 'INQ-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
+    $timestamp = date('Y-m-d H:i:s');
+    $clientIp  = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+    $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+
+    $inquiryPayload = [];
+    $subject        = '';
+    $body           = '';
+    $senderEmail    = '';
+
+    // 2. Process Form Types
     if ($formType === 'admission') {
-        // Online Admission Form Processing
+        // Online Admission Form
         $studentFirst = htmlspecialchars(trim($_POST['first_name'] ?? ''));
         $studentLast  = htmlspecialchars(trim($_POST['last_name'] ?? ''));
         $studentName  = trim("$studentFirst $studentLast");
@@ -36,66 +69,172 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             exit;
         }
 
-        $subject = "New Online Admission Registration: $studentName ($classApplied) - The Discovery International School";
+        $senderEmail = !empty($email) ? $email : $school['email'];
+        $subject     = "New Online Admission Registration: {$studentName} ({$classApplied}) - [{$inquiryId}]";
 
-        $body = "=======================================================\n";
-        $body .= "NEW ONLINE ADMISSION REGISTRATION\n";
+        // Structured payload for JSON storage
+        $inquiryPayload = [
+            'id'          => $inquiryId,
+            'timestamp'   => $timestamp,
+            'form_type'   => 'admission',
+            'form_title'  => 'Online Admission Registration',
+            'session'     => $school['session'] ?? '2026-27',
+            'data'        => [
+                'student_first_name' => $studentFirst,
+                'student_last_name'  => $studentLast,
+                'student_full_name'  => $studentName,
+                'aadhar_number'      => $aadharNo,
+                'father_name'        => $fatherName,
+                'class_applied'      => $classApplied,
+                'previous_school'    => $prevSchool,
+                'whatsapp'           => $whatsapp,
+                'contact_number'     => $contactNo,
+                'email'              => $email,
+                'address'            => $address,
+                'city'               => $city,
+                'state'              => $state,
+                'message'            => $message,
+            ],
+            'meta'        => [
+                'ip_address' => $clientIp,
+                'user_agent' => $userAgent
+            ]
+        ];
+
+        // Format Email Body
+        $body  = "=======================================================\n";
+        $body .= "NEW ONLINE ADMISSION REGISTRATION - {$inquiryId}\n";
         $body .= "The Discovery International School, Prithla (Session {$school['session']})\n";
         $body .= "=======================================================\n\n";
+        $body .= "Inquiry ID:          $inquiryId\n";
         $body .= "Student Name:        $studentName\n";
         $body .= "Student Aadhaar No:  $aadharNo\n";
         $body .= "Father's Name:       $fatherName\n";
         $body .= "Class Applying For:  $classApplied\n";
-        $body .= "Previous School:     $prevSchool\n";
+        $body .= "Previous School:     " . ($prevSchool ?: 'N/A') . "\n";
         $body .= "WhatsApp Number:     $whatsapp\n";
-        $body .= "Contact Number:      $contactNo\n";
-        $body .= "Email:               $email\n";
+        $body .= "Calling Phone No:    $contactNo\n";
+        $body .= "Parent Email:        " . ($email ?: 'N/A') . "\n";
         $body .= "Residential Address: $address, $city, $state\n";
-        $body .= "Additional Message:  $message\n\n";
-        $body .= "Submission Time:     " . date('d-M-Y H:i:s T') . "\n";
-        $body .= "Client IP:           " . ($_SERVER['REMOTE_ADDR'] ?? 'Unknown') . "\n";
+        $body .= "Additional Message:  " . ($message ?: 'None') . "\n\n";
+        $body .= "Submission Date/Time: " . date('d-M-Y H:i:s T') . "\n";
+        $body .= "Client IP Address:    " . $clientIp . "\n";
+        $body .= "=======================================================\n";
 
     } else {
-        // General Contact Form Processing
-        $name    = htmlspecialchars(trim($_POST['name'] ?? ''));
-        $email   = filter_var(trim($_POST['email'] ?? ''), FILTER_SANITIZE_EMAIL);
-        $phone   = htmlspecialchars(trim($_POST['phone'] ?? ''));
+        // General Contact Form
+        $name          = htmlspecialchars(trim($_POST['name'] ?? ''));
+        $email         = filter_var(trim($_POST['email'] ?? ''), FILTER_SANITIZE_EMAIL);
+        $phone         = htmlspecialchars(trim($_POST['phone'] ?? ''));
         $classInterest = htmlspecialchars(trim($_POST['class_interest'] ?? ''));
-        $message = htmlspecialchars(trim($_POST['message'] ?? ''));
+        $message       = htmlspecialchars(trim($_POST['message'] ?? ''));
 
         if (empty($name) || empty($phone) || empty($message)) {
-            $_SESSION['form_error'] = "Please fill in all required fields.";
+            $_SESSION['form_error'] = "Please fill in all required fields (Name, Phone, and Message).";
             header("Location: " . $referer);
             exit;
         }
 
-        $subject = "New Inquiry from $name - The Discovery International School";
+        $senderEmail = !empty($email) ? $email : $school['email'];
+        $subject     = "New Contact Inquiry from {$name}" . ($classInterest ? " ({$classInterest})" : "") . " - [{$inquiryId}]";
 
-        $body = "=======================================================\n";
-        $body .= "NEW CONTACT US INQUIRY\n";
+        // Structured payload for JSON storage
+        $inquiryPayload = [
+            'id'          => $inquiryId,
+            'timestamp'   => $timestamp,
+            'form_type'   => 'contact',
+            'form_title'  => 'General Contact Us Inquiry',
+            'session'     => $school['session'] ?? '2026-27',
+            'data'        => [
+                'name'           => $name,
+                'email'          => $email,
+                'phone'          => $phone,
+                'class_interest' => $classInterest,
+                'message'        => $message,
+            ],
+            'meta'        => [
+                'ip_address' => $clientIp,
+                'user_agent' => $userAgent
+            ]
+        ];
+
+        // Format Email Body
+        $body  = "=======================================================\n";
+        $body .= "NEW CONTACT US INQUIRY - {$inquiryId}\n";
         $body .= "The Discovery International School, Prithla\n";
         $body .= "=======================================================\n\n";
-        $body .= "Name:           $name\n";
-        $body .= "Email:          $email\n";
-        $body .= "Phone:          $phone\n";
-        $body .= "Class Interest: $classInterest\n";
+        $body .= "Inquiry ID:          $inquiryId\n";
+        $body .= "Name:                $name\n";
+        $body .= "Email:               " . ($email ?: 'N/A') . "\n";
+        $body .= "Phone Number:        $phone\n";
+        $body .= "Class of Interest:   " . ($classInterest ?: 'General Inquiry') . "\n";
         $body .= "Message:\n$message\n\n";
-        $body .= "Submission Time: " . date('d-M-Y H:i:s T') . "\n";
-        $body .= "Client IP:       " . ($_SERVER['REMOTE_ADDR'] ?? 'Unknown') . "\n";
+        $body .= "Submission Date/Time: " . date('d-M-Y H:i:s T') . "\n";
+        $body .= "Client IP Address:    " . $clientIp . "\n";
+        $body .= "=======================================================\n";
     }
 
-    $headers = "From: " . ($school['email']) . "\r\n";
-    if (!empty($email)) {
-        $headers .= "Reply-To: $email\r\n";
+    // 3. Dispatch Emails to ALL Admin Recipients
+    $mailHeaders  = "MIME-Version: 1.0\r\n";
+    $mailHeaders .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $mailHeaders .= "From: The Discovery International School <" . ($school['email']) . ">\r\n";
+    if (!empty($senderEmail) && filter_var($senderEmail, FILTER_VALIDATE_EMAIL)) {
+        $mailHeaders .= "Reply-To: $senderEmail\r\n";
     }
-    $headers .= "X-Mailer: PHP/" . phpversion();
+    $mailHeaders .= "X-Inquiry-ID: $inquiryId\r\n";
+    $mailHeaders .= "X-Mailer: PHP/" . phpversion();
 
-    // Send mail safely (or queue)
-    @mail($recipients, $subject, $body, $headers);
+    $sentRecipients   = [];
+    $failedRecipients = [];
 
-    $_SESSION['form_success'] = "Thank you! Your information has been submitted successfully to The Discovery International School. Our office will contact you shortly.";
+    foreach ($recipients as $recipientEmail) {
+        $isSent = @mail($recipientEmail, $subject, $body, $mailHeaders);
+        if ($isSent) {
+            $sentRecipients[] = $recipientEmail;
+        } else {
+            $failedRecipients[] = $recipientEmail;
+        }
+    }
+
+    // Record email delivery details in the inquiry payload
+    $inquiryPayload['delivery'] = [
+        'target_recipients' => $recipients,
+        'sent_to'           => $sentRecipients,
+        'failed'            => $failedRecipients,
+        'status'            => !empty($sentRecipients) ? 'sent' : 'logged_locally'
+    ];
+
+    // 4. Save into JSON Log File (data/inquiries.json) with File Locking
+    $dataDir  = __DIR__ . '/data';
+    $jsonFile = $dataDir . '/inquiries.json';
+
+    if (!is_dir($dataDir)) {
+        @mkdir($dataDir, 0755, true);
+    }
+
+    // Read existing logs safely
+    $allInquiries = [];
+    if (file_exists($jsonFile)) {
+        $fileContent = @file_get_contents($jsonFile);
+        if (!empty($fileContent)) {
+            $decoded = json_decode($fileContent, true);
+            if (is_array($decoded)) {
+                $allInquiries = $decoded;
+            }
+        }
+    }
+
+    // Prepend new inquiry to the top (newest first)
+    array_unshift($allInquiries, $inquiryPayload);
+
+    // Save with exclusive lock
+    @file_put_contents($jsonFile, json_encode($allInquiries, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX);
+
+    // 5. Success Feedback to Visitor
+    $_SESSION['form_success'] = "Thank you! Your information has been registered successfully (Inquiry Ref: <strong>{$inquiryId}</strong>). Our admissions administration will contact you shortly.";
     header("Location: " . $referer);
     exit;
+
 } else {
     header("Location: index.php");
     exit;
