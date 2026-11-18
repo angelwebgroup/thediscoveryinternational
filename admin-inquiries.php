@@ -160,6 +160,31 @@ if ($currentFilter === 'admission') {
     $filteredInquiries = array_filter($inquiries, fn($i) => ($i['form_type'] ?? '') === 'contact');
 }
 
+require_once __DIR__ . '/mailer_helper.php';
+
+// Handle Diagnostic Test Email Dispatch
+$testMailResult = null;
+if ($isAuthenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'send_test_email') {
+    $raw_emails = $school['admin_emails'] ?? ['thediscoveryinternational@gmail.com'];
+    if (!is_array($raw_emails)) $raw_emails = [$raw_emails];
+    $recipients = array_values(array_filter(array_map('trim', $raw_emails), fn($e) => !empty($e) && filter_var($e, FILTER_VALIDATE_EMAIL)));
+    
+    $testId = 'TEST-' . date('Ymd-His');
+    $testSubject = "Diagnostic Test Email: The Discovery International School [{$testId}]";
+    $testBody  = "=======================================================\n";
+    $testBody .= "DIAGNOSTIC TEST NOTIFICATION EMAIL\n";
+    $testBody .= "The Discovery International School, Prithla, Palwal\n";
+    $testBody .= "=======================================================\n\n";
+    $testBody .= "Test ID:        {$testId}\n";
+    $testBody .= "Server Host:    " . ($_SERVER['SERVER_NAME'] ?? 'thediscoveryinternational.com') . "\n";
+    $testBody .= "Date/Time:      " . date('d-M-Y H:i:s T') . "\n";
+    $testBody .= "SMTP Mode:      " . (!empty($school['smtp']['enabled']) ? 'YES (' . ($school['smtp']['host'] ?? '') . ':' . ($school['smtp']['port'] ?? 587) . ')' : 'NO (PHP mail() fallback)') . "\n\n";
+    $testBody .= "If this email is visible in your inbox, your email notification configuration is active!\n";
+    $testBody .= "=======================================================\n";
+
+    $testMailResult = dispatch_notification_email($recipients, $testSubject, $testBody, $school['email'], $school, $testId);
+}
+
 include 'header.php';
 ?>
 
@@ -188,15 +213,59 @@ include 'header.php';
             </div>
         </div>
 
-        <!-- Notification Recipients Card -->
-        <div style="background: #ffffff; border: 1px solid var(--slate-200); border-radius: var(--radius-lg); padding: 18px 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--navy-50); color: var(--navy-900); display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
+        <!-- Diagnostic Test Email Result Alert -->
+        <?php if ($testMailResult !== null): ?>
+            <?php 
+            $hasSuccess = !empty($testMailResult['sent']);
+            $hasFailure = !empty($testMailResult['failed']);
+            $alertBg = $hasSuccess && !$hasFailure ? '#f0fdf4' : ($hasSuccess ? '#fffbeb' : '#fef2f2');
+            $alertBorder = $hasSuccess && !$hasFailure ? '#86efac' : ($hasSuccess ? '#fde68a' : '#fca5a5');
+            $alertText = $hasSuccess && !$hasFailure ? '#166534' : ($hasSuccess ? '#92400e' : '#991b1b');
+            ?>
+            <div style="background: <?php echo $alertBg; ?>; border: 1px solid <?php echo $alertBorder; ?>; color: <?php echo $alertText; ?>; border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: 24px; box-shadow: var(--shadow-sm);">
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <i class="fas <?php echo $hasSuccess && !$hasFailure ? 'fa-circle-check' : 'fa-triangle-exclamation'; ?>" style="font-size: 1.3rem; margin-top: 2px;"></i>
+                    <div style="flex: 1;">
+                        <strong style="font-size: 0.98rem; display: block; margin-bottom: 4px;">
+                            <?php 
+                            if ($hasSuccess && !$hasFailure) {
+                                echo "Diagnostic Test Email Dispatched Successfully!";
+                            } elseif ($hasSuccess) {
+                                echo "Partial Success: Sent to some recipients, but others failed.";
+                            } else {
+                                echo "Test Email Dispatch Failed!";
+                            }
+                            ?>
+                        </strong>
+                        <div style="font-size: 0.86rem; line-height: 1.5;">
+                            <?php if (!empty($testMailResult['sent'])): ?>
+                                <div><i class="fas fa-check" style="color: #16a34a;"></i> <strong>Delivered to:</strong> <?php echo htmlspecialchars(implode(', ', $testMailResult['sent'])); ?></div>
+                            <?php endif; ?>
+                            <?php if (!empty($testMailResult['failed'])): ?>
+                                <div style="margin-top: 4px;"><i class="fas fa-xmark" style="color: #dc2626;"></i> <strong>Failed for:</strong> <?php echo htmlspecialchars(implode(', ', $testMailResult['failed'])); ?></div>
+                            <?php endif; ?>
+                            <?php if (!empty($testMailResult['logs'])): ?>
+                                <div style="margin-top: 8px; font-family: monospace; font-size: 0.8rem; background: rgba(0,0,0,0.04); padding: 8px 12px; border-radius: 4px;">
+                                    <?php foreach ($testMailResult['logs'] as $em => $l): ?>
+                                        <div><strong><?php echo htmlspecialchars($em); ?>:</strong> <?php echo htmlspecialchars($l); ?></div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Notification Recipients & Mail Diagnostic Card -->
+        <div style="background: #ffffff; border: 1px solid var(--slate-200); border-radius: var(--radius-lg); padding: 18px 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+            <div style="display: flex; align-items: center; gap: 14px; flex: 1; min-width: 280px;">
+                <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--navy-50); color: var(--navy-900); display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0;">
                     <i class="fas fa-envelope-open-text"></i>
                 </div>
                 <div>
-                    <strong style="color: var(--navy-950); font-size: 0.95rem; display: block;">Active Notification Email Recipients (admin_emails in config.php):</strong>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+                    <strong style="color: var(--navy-950); font-size: 0.95rem; display: block;">Active Notification Email Recipients:</strong>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; align-items: center;">
                         <?php 
                         $adminEmails = $school['admin_emails'] ?? ['thediscoveryinternational@gmail.com'];
                         foreach ($adminEmails as $idx => $adminEm): 
@@ -205,12 +274,27 @@ include 'header.php';
                                 <i class="fas fa-check-circle" style="color: #3b82f6; font-size: 0.75rem;"></i> <?php echo htmlspecialchars($adminEm); ?>
                             </span>
                         <?php endforeach; ?>
+
+                        <?php if (!empty($school['smtp']['enabled'])): ?>
+                            <span style="background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; font-size: 0.74rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
+                                <i class="fas fa-shield-halved"></i> SMTP Enabled (<?php echo htmlspecialchars($school['smtp']['host'] ?? ''); ?>)
+                            </span>
+                        <?php else: ?>
+                            <span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.74rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
+                                <i class="fas fa-paper-plane"></i> PHP mail() Mode (SMTP disabled)
+                            </span>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
-            <span style="font-size: 0.82rem; color: var(--slate-500); font-style: italic;">
-                Configure in <code>config.php</code> &rarr; <code>$school['admin_emails']</code>
-            </span>
+
+            <!-- Send Test Email Button -->
+            <form method="POST" action="admin-inquiries.php" style="margin: 0;">
+                <input type="hidden" name="action" value="send_test_email">
+                <button type="submit" class="btn btn-hero-primary" style="padding: 9px 18px; font-size: 0.85rem; border-radius: var(--radius-md); display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-paper-plane"></i> Send Test Email Now
+                </button>
+            </form>
         </div>
 
         <!-- Metric Cards -->
@@ -272,7 +356,8 @@ include 'header.php';
                                 <th style="padding: 12px 16px;">Contact Phone</th>
                                 <th style="padding: 12px 16px;">Class</th>
                                 <th style="padding: 12px 16px;">Email</th>
-                                <th style="padding: 12px 16px; width: 25%;">Message / Details</th>
+                                <th style="padding: 12px 16px;">Delivery</th>
+                                <th style="padding: 12px 16px; width: 22%;">Message / Details</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -340,6 +425,22 @@ include 'header.php';
                                             </a>
                                         <?php else: ?>
                                             <span style="color: var(--slate-400); font-style: italic;">Not provided</span>
+                                        <?php endif; ?>
+                                    </td>
+
+                                    <td style="padding: 14px 16px; vertical-align: top;">
+                                        <?php
+                                        $del = $item['delivery'] ?? [];
+                                        $sentList = $del['sent_to'] ?? [];
+                                        if (!empty($sentList)):
+                                        ?>
+                                            <span style="background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;" title="<?php echo htmlspecialchars(implode(' | ', $del['logs'] ?? [])); ?>">
+                                                <i class="fas fa-circle-check" style="color: #10b981;"></i> Sent
+                                            </span>
+                                        <?php else: ?>
+                                            <span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;" title="Stored safely in data/inquiries.json">
+                                                <i class="fas fa-database" style="color: #f59e0b;"></i> Logged
+                                            </span>
                                         <?php endif; ?>
                                     </td>
 
