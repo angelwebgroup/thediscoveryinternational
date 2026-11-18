@@ -7,8 +7,6 @@
  * CBSE Affiliation No: 532266
  */
 
-// Geo-restriction security guard (Enforce India-only visitor access)
-require_once __DIR__ . '/security_geo.php';
 
 $school = [
     // Basic Information

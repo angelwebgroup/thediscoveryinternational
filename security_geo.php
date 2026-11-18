@@ -1,11 +1,6 @@
 <?php
-/**
- * =========================================================================
- * Geo-Restriction Security Guard
- * =========================================================================
- * Restricts website access exclusively to visitors connecting from India (IN)
- * and allows local development/LAN access.
- */
+// Geo-restriction disabled - Allow all visitors globally
+return;
 
 // Bypass for CLI execution
 if (php_sapi_name() === 'cli') {
