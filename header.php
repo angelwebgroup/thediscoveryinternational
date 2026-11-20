@@ -1,15 +1,29 @@
 <?php 
 require_once __DIR__ . '/config.php'; 
-$current_page = basename($_SERVER['PHP_SELF']);
+require_once __DIR__ . '/seo_helper.php';
+$current_page = basename($_SERVER['PHP_SELF'] ?? 'index.php');
+
+// Allow page-specific override of SEO variables if set before including header.php
+$page_seo = get_page_seo($school, $current_page);
+if (!empty($page_title))       $page_seo['title']       = $page_title;
+if (!empty($page_description)) $page_seo['description'] = $page_description;
+if (!empty($page_keywords))    $page_seo['keywords']    = $page_keywords;
+if (!empty($canonical_url))    $page_seo['canonical']   = $canonical_url;
+if (!empty($og_image))         $page_seo['og_image']    = $og_image;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($school['name']); ?> - <?php echo htmlspecialchars($school['tagline']); ?></title>
-    <meta name="description" content="<?php echo htmlspecialchars($school['name']); ?> - A Premier CBSE-affiliated senior secondary school in Prithla, Palwal (Haryana). Affiliation No: <?php echo htmlspecialchars($school['affiliation_no']); ?>. Admissions open for session <?php echo htmlspecialchars($school['session']); ?>.">
-    <link rel="canonical" href="https://www.tisagra.com/">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- Complete Dynamic SEO Meta Tags, Open Graph, Twitter Cards & JSON-LD Schemas -->
+    <?php render_seo_meta_tags($page_seo, $school); ?>
+
+    <!-- Favicon & App Icons -->
+    <link rel="icon" type="image/png" href="images/logo.png">
+    <link rel="apple-touch-icon" href="images/logo.png">
     
     <!-- Modern Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +34,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="assets/css/style.css?v=3.2">
+    <link rel="stylesheet" href="assets/css/style.css?v=3.3">
 </head>
 <body>
 

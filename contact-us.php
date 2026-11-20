@@ -8,17 +8,8 @@ include 'header.php';
 
 <main id="content" class="site-main">
 
-    <!-- Page Header -->
-    <div class="page-header">
-        <div class="container page-header-content">
-            <h1>Contact Us &amp; Visit Campus</h1>
-            <ul class="breadcrumbs">
-                <li><a href="index.php"><i class="fas fa-home"></i> Home</a></li>
-                <li><span class="separator"><i class="fas fa-chevron-right"></i></span></li>
-                <li><span>Contact Us</span></li>
-            </ul>
-        </div>
-    </div>
+    <!-- Standardized SEO-Optimized Page Header Banner -->
+    <?php render_page_banner(); ?>
 
     <!-- Page Content Container -->
     <div class="container page-container">

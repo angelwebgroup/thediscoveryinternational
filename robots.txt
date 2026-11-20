@@ -1,4 +1,9 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /data/
+Disallow: /admin-inquiries.php
+Disallow: /mailer_helper.php
+Disallow: /send_form_email.php
+Disallow: /security_geo.php
 
-Sitemap: https://www.tisagra.com/sitemap.xml
+Sitemap: https://thediscoveryinternational.com/sitemap.xml

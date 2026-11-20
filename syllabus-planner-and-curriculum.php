@@ -1,20 +1,12 @@
-<?php include 'header.php'; ?>
+<?php 
+require_once __DIR__ . '/config.php';
+include 'header.php'; 
+?>
 
 <main id="content" class="site-main">
 
-    <!-- Page Header -->
-    <div class="page-header">
-        <div class="container page-header-content">
-            <h1>Syllabus Planner &amp; Curriculum</h1>
-            <ul class="breadcrumbs">
-                <li><a href="index.php"><i class="fas fa-home"></i> Home</a></li>
-                <li><span class="separator"><i class="fas fa-chevron-right" style="font-size: 0.7rem;"></i></span></li>
-                <li><span>Academics</span></li>
-                <li><span class="separator"><i class="fas fa-chevron-right" style="font-size: 0.7rem;"></i></span></li>
-                <li><span>Syllabus Planner &amp; Curriculum</span></li>
-            </ul>
-        </div>
-    </div>
+    <!-- Standardized SEO-Optimized Page Header Banner -->
+    <?php render_page_banner(); ?>
 
     <!-- Page Content Container -->
     <div class="container page-container">

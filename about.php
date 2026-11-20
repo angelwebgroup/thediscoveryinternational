@@ -5,19 +5,8 @@ include 'header.php';
 
 <main id="content" class="site-main">
 
-    <!-- Modern Page Header -->
-    <div class="page-header">
-        <div class="container page-header-content">
-            <h1>About <?php echo htmlspecialchars($school['name']); ?></h1>
-            <ul class="breadcrumbs">
-                <li><a href="index.php"><i class="fas fa-home"></i> Home</a></li>
-                <li><span class="separator"><i class="fas fa-chevron-right"></i></span></li>
-                <li><span>About Us</span></li>
-                <li><span class="separator"><i class="fas fa-chevron-right"></i></span></li>
-                <li><span>Overview &amp; Society</span></li>
-            </ul>
-        </div>
-    </div>
+    <!-- Standardized SEO-Optimized Page Header Banner -->
+    <?php render_page_banner(); ?>
 
     <!-- Page Content Container -->
     <div class="container page-container">
